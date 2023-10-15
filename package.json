@@ -15,6 +15,7 @@
     "@aws-sdk/util-create-request": "^3.425.0",
     "@aws-sdk/util-format-url": "^3.425.0",
     "archiver": "^6.0.1",
+    "stream-to-array": "^2.3.0",
     "stream-to-promise": "^3.0.0",
     "streamifier": "^0.1.1",
     "update": "^0.7.4"
