@@ -43,11 +43,15 @@ export const handler = async (event, context) => {
 
         archive.pipe(output);
 
-        await processPDFs(event.projectIds, event.groupName, inputBucket, archive, s3Client);
-
+        let proccesProjects = await processPDFs(event.projectIds, event.groupName, inputBucket, archive, s3Client);
+        if(proccesProjects?.status === 'error') {
+            return { statusCode: 500 };
+        }
         // Process slokkerProjectIds PDFs, 2 at a time
-        await processPDFs(event.slokkerProjectIds, event.groupName, inputBucket, archive, s3Client);
-
+        let processSlokkerProjects = await processPDFs(event.slokkerProjectIds, event.groupName, inputBucket, archive, s3Client);
+        if(processSlokkerProjects?.status === 'error') {
+            return { statusCode: 500 };
+        }
         console.log('before finalize');
         return await new Promise((resolve, reject) => {
             output.on('finish', async () => {
@@ -73,6 +77,7 @@ export const handler = async (event, context) => {
                     const signedUrl = formatUrl(await signer.presign(request));
                     console.log('signedUrl:', signedUrl);
                     resolve({ statusCode: 200, url: signedUrl });
+                    return { statusCode: 200, url: signedUrl };
                 } catch (ex) {
                     reject(ex);
                 }
@@ -81,6 +86,9 @@ export const handler = async (event, context) => {
             archive.finalize().then(() => {
                 console.log('finalize done');
             }).catch(reject);  // Catch any errors that might occur during archive.finalize()
+        }).catch((ex) => {
+            console.log(ex);
+            return { statusCode: 500 };
         });
 
     } catch (ex) {
@@ -110,10 +118,10 @@ async function processPDFs(projectIds, groupName, inputBucket, archive, s3Client
 
             console.log(`Successfully fetched ${file}`);
 
-            archive.append(fs.createReadStream('/tmp/' + file), { name: file});
-            await sleep(100)
+            await archive.append(fs.createReadStream('/tmp/' + file), { name: file});
         } catch (err) {
             console.log(`Error getting object ${file} from bucket:`, err);
+            return {status: 'error'}
         }
 
         // Sleep for 1 second (1000 milliseconds) before next iteration
